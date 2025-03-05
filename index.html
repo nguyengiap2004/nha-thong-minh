@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giám sát cảm biến IoT</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h2>📊 Trực quan hóa dữ liệu cảm biến từ CSV</h2>
+
+    <!-- Biểu đồ -->
+    <canvas id="sensorChart"></canvas>
+
+    <!-- Bảng dữ liệu -->
+    <h3>📋 Dữ liệu cảm biến</h3>
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>Thời gian</th>
+                <th>Nhiệt độ (°C)</th>
+                <th>Độ ẩm (%)</th>
+                <th>Ánh sáng</th>
+                <th>Khí gas</th>
+                <th>Âm thanh</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        var ctx = document.getElementById('sensorChart').getContext('2d');
+        var chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Nhiệt độ (°C)', data: [], borderColor: 'red', fill: false },
+                    { label: 'Độ ẩm (%)', data: [], borderColor: 'blue', fill: false },
+                    { label: 'Ánh sáng', data: [], borderColor: 'yellow', fill: false },
+                    { label: 'Khí gas', data: [], borderColor: 'green', fill: false },
+                    { label: 'Âm thanh', data: [], borderColor: 'purple', fill: false }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Thời gian' },
+                        ticks: {
+                            autoSkip: true,        // Tự động bỏ bớt nhãn nếu quá nhiều
+                            maxTicksLimit: 10      // Giới hạn số nhãn hiển thị trên trục X
+                        }
+                    },
+                    y: {
+                        title: { display: true, text: 'Giá trị cảm biến' }
+                    }
+                },
+                elements: {
+                    point: { radius: 3 }   // Giảm kích thước điểm dữ liệu để tránh bị chồng lên nhau
+                }
+            }
+        });
+
+        function fetchData() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error("Lỗi khi tải dữ liệu:", data.error);
+                        return;
+                    }
+
+                    var tableBody = document.querySelector("#dataTable tbody");
+                    tableBody.innerHTML = "";  // Xóa dữ liệu cũ
+
+                    chart.data.labels = [];
+                    for (var i = 0; i < chart.data.datasets.length; i++) {
+                        chart.data.datasets[i].data = [];
+                    }
+
+                    data.forEach(entry => {
+                        var time = new Date(entry.Timestamp).toLocaleTimeString(); // Chuyển timestamp về dạng thời gian ngắn
+                        chart.data.labels.push(time);
+
+                        chart.data.datasets[0].data.push(parseFloat(entry.Temperature));
+                        chart.data.datasets[1].data.push(parseFloat(entry.Humidity));
+                        chart.data.datasets[2].data.push(parseFloat(entry.Light));
+                        chart.data.datasets[3].data.push(parseFloat(entry.Gas));
+                        chart.data.datasets[4].data.push(parseFloat(entry.Sound));
+
+                        var row = tableBody.insertRow();
+                        row.insertCell(0).innerText = time;
+                        row.insertCell(1).innerText = entry.Temperature;
+                        row.insertCell(2).innerText = entry.Humidity;
+                        row.insertCell(3).innerText = entry.Light;
+                        row.insertCell(4).innerText = entry.Gas;
+                        row.insertCell(5).innerText = entry.Sound;
+                    });
+
+                    chart.update();
+                })
+                .catch(error => console.error("Lỗi tải dữ liệu:", error));
+        }
+
+        // Cập nhật dữ liệu mỗi 10 giây
+        fetchData();
+        setInterval(fetchData, 10000);
+    </script>
+</body>
+</html>
